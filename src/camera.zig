@@ -32,20 +32,33 @@ const ThreadInfo = struct {
     semaphore_ptr: *Semaphore,
 };
 
-// Resolution parameters
+// Resolution
 const aspect_ratio: f64 = 16.0 / 9.0;
 const image_width: usize = 2560; // Possible 128, 256, 512, 1024, 1280, 1920, 2560, 3840, 7680
 const image_height: usize = image_width / aspect_ratio;
+
+// Ray precision
 const samples_per_pixel = 500;
 const max_depth = 50;
 
+// Camera lenses
+const defocus_angle = 0.6;
+const focus_dist = 10;
+const vfov = 20;
+
+// Camera position
+const lookfrom = vec3{ 13, 2, 3 };
+const lookat = vec3{ 0, 0, 0 };
+const vup = vec3{ 0, 1, 0 };
+
+// Number of thread to use
 const n_threads_to_spawn = 100;
 
+// Global var for multi-thread
 var completion_count: usize = 0;
 var next_entry_to_do: usize = 0;
 var entry_count: usize = 0;
 var entry_buffer: [image_width * image_height]Pixel = undefined;
-
 var _camera: *const Camera = undefined;
 
 fn addWork(semaphore_ptr: *Semaphore) void {
@@ -166,14 +179,6 @@ pub const Camera = struct {
     }
 
     pub fn new(world: *const HittableList) Camera {
-        const vfov = 20;
-        const lookfrom = vec3{ 13, 2, 3 };
-        const lookat = vec3{ 0, 0, 0 };
-        const vup = vec3{ 0, 1, 0 };
-
-        const defocus_angle = 0.6;
-        const focus_dist = 10;
-
         const camera_center = lookfrom;
         const pixel_samples_scale = 1.0 / @as(f64, @floatFromInt(samples_per_pixel));
 
