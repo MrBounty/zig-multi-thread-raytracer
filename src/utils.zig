@@ -45,6 +45,10 @@ pub const Interval = struct {
 
 pub fn toVec3(x: anytype) vec3 {
     switch (@TypeOf(x)) {
+        usize => {
+            const x_float = @as(f64, @floatFromInt(x));
+            return vec3{ x_float, x_float, x_float };
+        },
         comptime_float => {
             const x_float = @as(f64, x);
             return vec3{ x_float, x_float, x_float };
@@ -63,10 +67,7 @@ pub fn toVec3(x: anytype) vec3 {
         @Vector(3, f64) => {
             return x;
         },
-        usize => {
-            const x_float = @as(f64, @floatFromInt(@as(i64, @intCast(x))));
-            return vec3{ x_float, x_float, x_float };
-        },
+
         else => {
             @panic("Unknow type passed through toVec3\n\n");
         },

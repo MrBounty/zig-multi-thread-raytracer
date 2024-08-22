@@ -32,21 +32,20 @@ pub fn main() !void {
     defer file.close();
     var buffered_writer = std.io.bufferedWriter(file.writer());
     const writer = buffered_writer.writer();
-    const camera = Camera.new();
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
+    errdefer arena.deinit();
     const alloc = arena.allocator();
 
     const world = try generateRandomScene(alloc);
+    const camera = Camera.new(&world);
 
     const start_time: i64 = std.time.milliTimestamp();
-    try camera.render(world, &writer);
+    try camera.render(&writer);
     const end_time: i64 = std.time.milliTimestamp();
     const total_time: f64 = @as(f64, @floatFromInt(end_time - start_time)) / 1000;
 
-    print("Rendering took {} s\n", .{total_time});
-    print("Potential FPS: {}\n", .{1 / total_time});
+    print("Rendering took {d} s\n\n", .{total_time});
 
     // Flush the buffered writer to ensure all data is written to the file
     try buffered_writer.flush();
@@ -98,6 +97,45 @@ pub fn run_open_image() !void {
     }
 }
 
+pub fn generateSameScene(alloc: std.mem.Allocator) !HittableList {
+    var spheres = std.ArrayList(Hittable).init(alloc);
+
+    // Ground sphere
+    try spheres.append(.{
+        .sphere = Sphere{
+            .center = vec3{ 0, -1000, 0 },
+            .radius = 1000,
+            .material = Material{ .lambertian = Lambertian{ .albedo = vec3{ 0.5, 0.5, 0.5 } } },
+        },
+    });
+
+    // Three large spheres
+    try spheres.append(.{
+        .sphere = Sphere{
+            .center = vec3{ 0, 1, 0 },
+            .radius = 1.0,
+            .material = Material{ .dielectric = Dielectric{ .refraction_index = 1.5 } },
+        },
+    });
+    try spheres.append(.{
+        .sphere = Sphere{
+            .center = vec3{ -4, 1, 0 },
+            .radius = 1.0,
+            .material = Material{ .lambertian = Lambertian{ .albedo = vec3{ 0.4, 0.2, 0.1 } } },
+        },
+    });
+    try spheres.append(.{
+        .sphere = Sphere{
+            .center = vec3{ 4, 1, 0 },
+            .radius = 1.0,
+            .material = Material{ .metal = Metal{ .albedo = vec3{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 } },
+        },
+    });
+
+    // Convert ArrayList to a slice and create HittableList
+    return HittableList{ .list = spheres.items };
+}
+
 pub fn generateRandomScene(alloc: std.mem.Allocator) !HittableList {
     var spheres = std.ArrayList(Hittable).init(alloc);
 
@@ -111,10 +149,13 @@ pub fn generateRandomScene(alloc: std.mem.Allocator) !HittableList {
     });
 
     // Smaller spheres
-    var a: i32 = -11;
+    var a: i32 = -6;
     while (a < 11) : (a += 1) {
-        var b: i32 = -11;
-        while (b < 11) : (b += 1) {
+        var b: i32 = -6;
+        while (b < 6) : (b += 1) {
+            if ((-1 < a) and (a < 1) or ((-1 < b) and (b < 1))) {
+                continue;
+            }
             const choose_mat = utils.rand_01();
             const center = vec3{
                 @as(f64, @floatFromInt(a)) + 0.9 * utils.rand_01(),
